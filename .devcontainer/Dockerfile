@@ -31,8 +31,7 @@ RUN useradd -m -s /bin/bash dev && \
     chown -R dev:dev /workspace
 
 # Set working directory
-WORKDIR /workspace
-
+WORKDIR /workspaces
 
 RUN apt-get update && apt-get install -y sudo
 RUN echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev
