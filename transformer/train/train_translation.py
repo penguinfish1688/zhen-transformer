@@ -451,10 +451,6 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
             print(f"\n⚠️  Warning: Checkpoint file not found at {resume_from}")
             print(f"   Starting training from scratch...")
     
-    # DataLoaders
-    train_loader = pipeline.get_dataloader("train", shuffle=True)
-    val_loader = pipeline.get_dataloader("val", shuffle=False)
-    
     # Training loop
     if resume_from and start_epoch > 1:
         print(f"\n🚀 Resuming training from epoch {start_epoch} to {config.num_epochs}...")
