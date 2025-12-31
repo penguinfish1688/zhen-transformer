@@ -238,13 +238,14 @@ def load_model_and_translate(checkpoint_path, config_path="transformer/config.ya
     return model, tokenizer
 
 
-def train(config_path="transformer/config.yaml", use_sample=True, resume_from=None):
+def train(config_path="transformer/config.yaml", use_sample=True, resume_from=None, multi_gpu=False):
     """Main training function
     
     Args:
         config_path: Path to YAML config file
         use_sample: Whether to use sample dataset
         resume_from: Path to checkpoint to resume training from (optional)
+        multi_gpu: Whether to use multiple GPUs with DataParallel (default: False)
     """
     
     print("\n" + "="*60)
@@ -284,6 +285,17 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
         tgt_pad_idx=tokenizer.tgt_vocab.pad_idx
     ).to(device)
     
+    # Multi-GPU setup
+    gpu_count = torch.cuda.device_count()
+    if multi_gpu and gpu_count > 1:
+        print(f"\n🚀 Using {gpu_count} GPUs with DataParallel")
+        model = nn.DataParallel(model)
+        print(f"   ✅ Model wrapped with DataParallel")
+        print(f"   📊 GPU devices: {list(range(gpu_count))}")
+    elif multi_gpu and gpu_count <= 1:
+        print(f"\n⚠️  Multi-GPU requested but only {gpu_count} GPU(s) available")
+        print(f"   Running on single device: {device}")
+    
     # Count parameters
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"📊 Model parameters: {num_params:,}")
@@ -303,7 +315,22 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
             
             # Load model state
             if 'model_state_dict' in checkpoint:
-                model.load_state_dict(checkpoint['model_state_dict'])
+                # Handle DataParallel state dict (with 'module.' prefix)
+                state_dict = checkpoint['model_state_dict']
+                if multi_gpu and not list(state_dict.keys())[0].startswith('module.'):
+                    # Loading non-DataParallel checkpoint into DataParallel model
+                    model.module.load_state_dict(state_dict)
+                elif not multi_gpu and list(state_dict.keys())[0].startswith('module.'):
+                    # Loading DataParallel checkpoint into non-DataParallel model
+                    # Remove 'module.' prefix
+                    from collections import OrderedDict
+                    new_state_dict = OrderedDict()
+                    for k, v in state_dict.items():
+                        name = k[7:] if k.startswith('module.') else k  # remove 'module.' prefix
+                        new_state_dict[name] = v
+                    model.load_state_dict(new_state_dict)
+                else:
+                    model.load_state_dict(state_dict)
                 print(f"   ✅ Model state loaded")
             else:
                 model.load_state_dict(checkpoint)
@@ -355,9 +382,11 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model_path = os.path.join(config.checkpoint_dir, "best_model.pt")
+            # Save model state (handle DataParallel wrapper)
+            model_state = model.module.state_dict() if isinstance(model, nn.DataParallel) else model.state_dict()
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': model.state_dict(),
+                'model_state_dict': model_state,
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_loss': val_loss,
                 'train_loss': train_loss,
@@ -367,9 +396,11 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
         # Save checkpoint every N epochs
         if epoch % config.checkpoint_frequency == 0:
             checkpoint_path = os.path.join(config.checkpoint_dir, f"checkpoint_epoch_{epoch}.pt")
+            # Save model state (handle DataParallel wrapper)
+            model_state = model.module.state_dict() if isinstance(model, nn.DataParallel) else model.state_dict()
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': model.state_dict(),
+                'model_state_dict': model_state,
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_loss': val_loss,
                 'train_loss': train_loss,
@@ -411,6 +442,8 @@ if __name__ == "__main__":
                         help='Use sample data instead of full dataset')
     parser.add_argument('--resume', action='store_true',
                         help='Resume training from checkpoint (use with --checkpoint)')
+    parser.add_argument('--multi_gpu', action='store_true',
+                        help='Use multiple GPUs with DataParallel')
     parser.add_argument('--sentences', type=str, nargs='+',
                         help='Custom sentences to translate (for test mode)')
     
@@ -422,7 +455,8 @@ if __name__ == "__main__":
         model, tokenizer = train(
             config_path=args.config,
             use_sample=args.use_sample,
-            resume_from=resume_checkpoint
+            resume_from=resume_checkpoint,
+            multi_gpu=args.multi_gpu
         )
     else:
         # Test mode - load and translate
