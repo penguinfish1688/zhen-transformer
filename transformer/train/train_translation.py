@@ -31,11 +31,16 @@ def train_epoch(model, dataloader, optimizer, criterion, device, epoch, max_len)
     for src_batch, tgt_batch in progress_bar:
         src_batch = src_batch.to(device)
         tgt_batch = tgt_batch.to(device)
-        
-        # Teacher forcing: use all but last target token as input
+
+        # Truncate long sentences
         tgt_len = tgt_batch.size(1)
         if tgt_len > max_len:
             tgt_batch = tgt_batch[:, :max_len]
+        src_len = src_batch.size(1)
+        if src_len > max_len:
+            src_batch = src_batch[:, :max_len]
+
+        # Teacher forcing: use all but last target token as input
         tgt_input = tgt_batch[:, :-1] # (batch_size, tgt_len - 1)
         tgt_output = tgt_batch[:, 1:] # (batch_size, tgt_len - 1)
 
