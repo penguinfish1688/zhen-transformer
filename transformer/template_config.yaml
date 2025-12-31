@@ -13,7 +13,7 @@ training:
   learning_rate: 0.0001
   num_epochs: 100
   warmup_steps: 4000
-  checkpoint_frequency: 5  # Save checkpoint every N epochs
+  checkpoint_frequency: 1  # Save checkpoint every N epochs
 
 # Data Configuration
 data:
@@ -35,5 +35,5 @@ tokenization:
 # Paths
 paths:
   data_dir: "data/translation"
-  checkpoint_dir: "checkpoints"
+  checkpoint_dir: "/workspaces/bertsi/checkpoints"
   cache_dir: "data/translation/cache"

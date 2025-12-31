@@ -401,7 +401,7 @@ def train(config_path="transformer/config.yaml", use_sample=True, resume_from=No
         if os.path.exists(resume_from):
             print(f"\n📥 Loading checkpoint from: {resume_from}")
             checkpoint = torch.load(resume_from, map_location="cpu")
-            
+
             # Get unwrapped model for loading state dict
             unwrapped_model = accelerator.unwrap_model(model)
             
@@ -529,7 +529,7 @@ if __name__ == "__main__":
                         help='Resume training from checkpoint (use with --checkpoint)')
     parser.add_argument('--no_accelerate', action='store_true',
                         help='Disable Accelerate (use single GPU only)')
-    parser.add_argument('--mixed_precision', type=str, default='no', choices=['no', 'fp16', 'bf16'],
+    parser.add_argument('--mixed_precision', type=str, default='fp16', choices=['no', 'fp16', 'bf16'],
                         help='Mixed precision mode: no, fp16, or bf16')
     parser.add_argument('--sentences', type=str, nargs='+',
                         help='Custom sentences to translate (for test mode)')
