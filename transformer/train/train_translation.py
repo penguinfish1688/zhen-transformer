@@ -28,25 +28,23 @@ def train_epoch(model, dataloader, optimizer, criterion, device, epoch, max_len)
     
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch}")
     
-    for src_batch, tgt_batch in progress_bar:
+    for src_batch, tgt_input, tgt_output in progress_bar:
         src_batch = src_batch.to(device)
-        tgt_batch = tgt_batch.to(device)
+        tgt_input = tgt_input.to(device)
+        tgt_output = tgt_output.to(device)
 
         # Truncate long sentences
-        tgt_len = tgt_batch.size(1)
-        if tgt_len > max_len:
-            tgt_batch = tgt_batch[:, :max_len]
         src_len = src_batch.size(1)
         if src_len > max_len:
             src_batch = src_batch[:, :max_len]
+        tgt_input_len = tgt_input.size(1)
+        if tgt_input_len > max_len:
+            tgt_input = tgt_input[:, :max_len]
+            tgt_output = tgt_output[:, :max_len]
 
-        # Teacher forcing: use all but last target token as input
-        tgt_input = tgt_batch[:, :-1] # (batch_size, tgt_len - 1)
-        tgt_output = tgt_batch[:, 1:] # (batch_size, tgt_len - 1)
-
-        # Forward pass
+        # Forward pass (teacher forcing already applied in dataset)
         optimizer.zero_grad()
-        logits = model(src_batch, tgt_input) # logits: (batch_size, tgt_len - 1, tgt_vocab_size)
+        logits = model(src_batch, tgt_input) # logits: (batch_size, tgt_len, tgt_vocab_size)
 
         # Compute loss
         logits_flat = logits.reshape(-1, logits.shape[-1]) # (batch_size * (tgt_len - 1), tgt_vocab_size)
@@ -73,12 +71,10 @@ def evaluate(model, dataloader, criterion, device):
     num_batches = 0
     
     with torch.no_grad():
-        for src_batch, tgt_batch in dataloader:
+        for src_batch, tgt_input, tgt_output in dataloader:
             src_batch = src_batch.to(device)
-            tgt_batch = tgt_batch.to(device)
-            
-            tgt_input = tgt_batch[:, :-1]
-            tgt_output = tgt_batch[:, 1:]
+            tgt_input = tgt_input.to(device)
+            tgt_output = tgt_output.to(device)
             
             logits = model(src_batch, tgt_input)
             

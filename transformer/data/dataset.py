@@ -19,54 +19,61 @@ import hashlib
 
 class TranslationDataset(Dataset):
     """
-    PyTorch Dataset for parallel translation data
+    PyTorch Dataset for parallel translation data with teacher forcing
     """
     
-    def __init__(self, src_data: List[List[int]], tgt_data: List[List[int]]):
+    def __init__(self, src_data: List[List[int]], tgt_input_data: List[List[int]], tgt_output_data: List[List[int]]):
         """
         Args:
             src_data: List of tokenized source sequences (as indices)
-            tgt_data: List of tokenized target sequences (as indices)
+            tgt_input_data: List of target input sequences for teacher forcing (with BOS, without last token)
+            tgt_output_data: List of target output sequences for training (without BOS, with EOS)
         """
-        assert len(src_data) == len(tgt_data), "Source and target must have same length"
+        assert len(src_data) == len(tgt_input_data) == len(tgt_output_data), "All data must have same length"
         self.src_data = src_data
-        self.tgt_data = tgt_data
+        self.tgt_input_data = tgt_input_data
+        self.tgt_output_data = tgt_output_data
     
     def __len__(self) -> int:
         return len(self.src_data)
     
-    def __getitem__(self, idx: int) -> Tuple[List[int], List[int]]:
-        return self.src_data[idx], self.tgt_data[idx]
+    def __getitem__(self, idx: int) -> Tuple[List[int], List[int], List[int]]:
+        return self.src_data[idx], self.tgt_input_data[idx], self.tgt_output_data[idx]
 
 
-def collate_fn(batch: List[Tuple[List[int], List[int]]], 
-               src_pad_idx: int, tgt_pad_idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+def collate_fn(batch: List[Tuple[List[int], List[int], List[int]]], 
+               src_pad_idx: int, tgt_pad_idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Collate function to pad sequences in a batch
+    Collate function to pad sequences in a batch with teacher forcing
     
     Args:
-        batch: List of (source, target) pairs
+        batch: List of (source, target_input, target_output) tuples
         src_pad_idx: Padding index for source
         tgt_pad_idx: Padding index for target
     
     Returns:
-        Tuple of padded (source_batch, target_batch) tensors
+        Tuple of padded (source_batch, target_input_batch, target_output_batch) tensors
     """
-    src_batch, tgt_batch = zip(*batch)
+    src_batch, tgt_input_batch, tgt_output_batch = zip(*batch)
     
     # Find max lengths
     src_max_len = max(len(s) for s in src_batch)
-    tgt_max_len = max(len(t) for t in tgt_batch)
+    tgt_input_max_len = max(len(t) for t in tgt_input_batch)
+    tgt_output_max_len = max(len(t) for t in tgt_output_batch)
     
     # Pad sequences
     src_padded = []
-    tgt_padded = []
+    tgt_input_padded = []
+    tgt_output_padded = []
     
-    for src, tgt in zip(src_batch, tgt_batch):
+    for src, tgt_in, tgt_out in zip(src_batch, tgt_input_batch, tgt_output_batch):
         src_padded.append(src + [src_pad_idx] * (src_max_len - len(src)))
-        tgt_padded.append(tgt + [tgt_pad_idx] * (tgt_max_len - len(tgt)))
+        tgt_input_padded.append(tgt_in + [tgt_pad_idx] * (tgt_input_max_len - len(tgt_in)))
+        tgt_output_padded.append(tgt_out + [tgt_pad_idx] * (tgt_output_max_len - len(tgt_out)))
     
-    return torch.tensor(src_padded, dtype=torch.long), torch.tensor(tgt_padded, dtype=torch.long)
+    return (torch.tensor(src_padded, dtype=torch.long), 
+            torch.tensor(tgt_input_padded, dtype=torch.long),
+            torch.tensor(tgt_output_padded, dtype=torch.long))
 
 
 def download_sample_data() -> Tuple[List[str], List[str]]:
@@ -318,18 +325,21 @@ class TranslationDataPipeline:
                 self.tokenizer.src_vocab = cached_data['src_vocab']
                 self.tokenizer.tgt_vocab = cached_data['tgt_vocab']
                 
-                # Restore datasets
+                # Restore datasets with teacher forcing
                 self.train_dataset = TranslationDataset(
                     cached_data['train_src_encoded'],
-                    cached_data['train_tgt_encoded']
+                    cached_data['train_tgt_input'],
+                    cached_data['train_tgt_output']
                 )
                 self.val_dataset = TranslationDataset(
                     cached_data['val_src_encoded'],
-                    cached_data['val_tgt_encoded']
+                    cached_data['val_tgt_input'],
+                    cached_data['val_tgt_output']
                 )
                 self.test_dataset = TranslationDataset(
                     cached_data['test_src_encoded'],
-                    cached_data['test_tgt_encoded']
+                    cached_data['test_tgt_input'],
+                    cached_data['test_tgt_output']
                 )
                 
                 print("\n" + "="*60)
@@ -382,8 +392,8 @@ class TranslationDataPipeline:
         print(f"   ✅ Val: {len(val_indices)} samples")
         print(f"   ✅ Test: {len(test_indices)} samples")
         
-        # Step 4: Create datasets
-        print(f"\n📊 Step 7: Creating PyTorch datasets...")
+        # Step 4: Create datasets with teacher forcing
+        print(f"\n📊 Step 7: Creating PyTorch datasets with teacher forcing...")
         
         train_src_encoded = [src_encoded[i] for i in train_indices]
         train_tgt_encoded = [tgt_encoded[i] for i in train_indices]
@@ -392,9 +402,17 @@ class TranslationDataPipeline:
         test_src_encoded = [src_encoded[i] for i in test_indices]
         test_tgt_encoded = [tgt_encoded[i] for i in test_indices]
         
-        self.train_dataset = TranslationDataset(train_src_encoded, train_tgt_encoded)
-        self.val_dataset = TranslationDataset(val_src_encoded, val_tgt_encoded)
-        self.test_dataset = TranslationDataset(test_src_encoded, test_tgt_encoded)
+        # Apply teacher forcing: split target into input (:-1) and output (1:)
+        train_tgt_input = [seq[:-1] for seq in train_tgt_encoded]
+        train_tgt_output = [seq[1:] for seq in train_tgt_encoded]
+        val_tgt_input = [seq[:-1] for seq in val_tgt_encoded]
+        val_tgt_output = [seq[1:] for seq in val_tgt_encoded]
+        test_tgt_input = [seq[:-1] for seq in test_tgt_encoded]
+        test_tgt_output = [seq[1:] for seq in test_tgt_encoded]
+        
+        self.train_dataset = TranslationDataset(train_src_encoded, train_tgt_input, train_tgt_output)
+        self.val_dataset = TranslationDataset(val_src_encoded, val_tgt_input, val_tgt_output)
+        self.test_dataset = TranslationDataset(test_src_encoded, test_tgt_input, test_tgt_output)
         
         print(f"   ✅ Datasets created successfully!")
         
@@ -403,11 +421,14 @@ class TranslationDataPipeline:
             'src_vocab': self.tokenizer.src_vocab,
             'tgt_vocab': self.tokenizer.tgt_vocab,
             'train_src_encoded': train_src_encoded,
-            'train_tgt_encoded': train_tgt_encoded,
+            'train_tgt_input': train_tgt_input,
+            'train_tgt_output': train_tgt_output,
             'val_src_encoded': val_src_encoded,
-            'val_tgt_encoded': val_tgt_encoded,
+            'val_tgt_input': val_tgt_input,
+            'val_tgt_output': val_tgt_output,
             'test_src_encoded': test_src_encoded,
-            'test_tgt_encoded': test_tgt_encoded,
+            'test_tgt_input': test_tgt_input,
+            'test_tgt_output': test_tgt_output,
         }
         self._save_cache(cache_data, cache_path)
         
@@ -460,11 +481,11 @@ class TranslationDataPipeline:
             num_workers=0
         )
     
-    def get_sample_batch(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_sample_batch(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get a sample batch for testing"""
         dataloader = self.get_dataloader("train", shuffle=False)
-        src_batch, tgt_batch = next(iter(dataloader))
-        return src_batch, tgt_batch
+        src_batch, tgt_input, tgt_output = next(iter(dataloader))
+        return src_batch, tgt_input, tgt_output
 
 
 def create_pipeline(use_sample: bool = True, config=None):
@@ -518,8 +539,10 @@ if __name__ == "__main__":
     
     # Get sample batch
     print("\n📦 Getting sample batch...")
-    src_batch, tgt_batch = pipeline.get_sample_batch()
+    src_batch, tgt_input, tgt_output = pipeline.get_sample_batch()
     print(f"   Source batch shape: {src_batch.shape}")
-    print(f"   Target batch shape: {tgt_batch.shape}")
+    print(f"   Target input batch shape: {tgt_input.shape}")
+    print(f"   Target output batch shape: {tgt_output.shape}")
     print(f"   Source sample: {src_batch[0].tolist()}")
-    print(f"   Target sample: {tgt_batch[0].tolist()}")
+    print(f"   Target input sample: {tgt_input[0].tolist()}")
+    print(f"   Target output sample: {tgt_output[0].tolist()}")

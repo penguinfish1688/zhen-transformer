@@ -148,7 +148,6 @@ class Transformer(nn.Module):
         Returns:
             Mask of shape (batch_size, 1, 1, src_len)
         """
-        print(src.shape)
         src_mask = (src != self.src_pad_idx).unsqueeze(1).unsqueeze(2)
         return src_mask
     
