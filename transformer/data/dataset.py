@@ -136,7 +136,7 @@ def download_sample_data() -> Tuple[List[str], List[str]]:
 
 def download_wmt_sample(num_samples: int = 1000) -> Tuple[List[str], List[str]]:
     """
-    Download a sample from common translation datasets.
+    Download a sample from WMT translation datasets using HuggingFace datasets.
     
     For a real application, you would use datasets like:
     - WMT (Workshop on Machine Translation)
@@ -144,36 +144,76 @@ def download_wmt_sample(num_samples: int = 1000) -> Tuple[List[str], List[str]]:
     - OpenSubtitles
     - OPUS (Open Parallel Corpus)
     
-    This function provides instructions for downloading real datasets.
+    This function downloads from OPUS-100 dataset (en-zh pairs).
+    Falls back to sample data if download fails.
+    
+    Args:
+        num_samples: Number of samples to download (default: 1000)
+    
+    Returns:
+        Tuple of (chinese_sentences, english_sentences)
     """
     print("\n" + "="*60)
-    print("📥 DATASET RECOMMENDATIONS FOR CHINESE-ENGLISH TRANSLATION")
-    print("="*60)
-    print("""
-For production use, download one of these datasets:
-
-1. **WMT News Translation** (Recommended for quality)
-   - URL: https://www.statmt.org/wmt21/translation-task.html
-   - Size: ~25M sentence pairs
-   
-2. **OPUS-100** (Easy to use with HuggingFace)
-   - pip install datasets
-   - from datasets import load_dataset
-   - dataset = load_dataset("opus100", "en-zh")
-   
-3. **AI Challenger Translation Dataset**
-   - URL: https://challenger.ai/
-   - Size: 10M sentence pairs
-   
-4. **UN Parallel Corpus**
-   - URL: https://conferences.unite.un.org/uncorpus
-   - High-quality formal translations
-
-For now, using built-in sample data for testing...
-""")
+    print("📥 DOWNLOADING WMT DATASET")
     print("="*60)
     
-    return download_sample_data()
+    try:
+        # Try to import datasets library
+        try:
+            from datasets import load_dataset
+        except ImportError:
+            print("⚠️  'datasets' library not found. Installing...")
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "datasets"])
+            from datasets import load_dataset
+        
+        print("📦 Loading OPUS-100 Chinese-English dataset...")
+        print(f"   Requesting {num_samples} samples...")
+        
+        # Load OPUS-100 dataset for Chinese-English
+        # This is a high-quality parallel corpus from OPUS
+        dataset = load_dataset("opus100", "en-zh", split="train", trust_remote_code=True)
+        
+        print(f"✅ Loaded dataset with {len(dataset)} total pairs")
+        
+        # Extract samples
+        num_samples = min(num_samples, len(dataset))
+        
+        chinese_sentences = []
+        english_sentences = []
+        
+        for i in range(num_samples):
+            item = dataset[i]
+            translation = item['translation']
+            
+            # OPUS-100 format: {'en': '...', 'zh': '...'}
+            en_text = translation['en']
+            zh_text = translation['zh']
+            
+            # Clean up sentences
+            en_text = en_text.strip()
+            zh_text = zh_text.strip()
+            
+            # Skip empty sentences
+            if en_text and zh_text:
+                chinese_sentences.append(zh_text)
+                english_sentences.append(en_text)
+        
+        print(f"✅ Extracted {len(chinese_sentences)} valid sentence pairs")
+        print(f"\n📊 Sample pairs:")
+        for i in range(min(3, len(chinese_sentences))):
+            print(f"   [{i+1}] ZH: {chinese_sentences[i]}")
+            print(f"       EN: {english_sentences[i]}")
+        
+        print("="*60)
+        return chinese_sentences, english_sentences
+        
+    except Exception as e:
+        print(f"\n⚠️  Failed to download WMT dataset: {e}")
+        print("📝 Falling back to sample data...")
+        print("="*60)
+        return download_sample_data()
 
 
 class TranslationDataPipeline:

@@ -108,6 +108,8 @@ class Transformer(nn.Module):
         dropout: Dropout rate
         src_pad_idx: Source padding token index
         tgt_pad_idx: Target padding token index
+    Output:
+        Logits over target vocabulary for each position (B)
     """
     def __init__(self, src_vocab_size: int, tgt_vocab_size: int, embed_dim: int = 512, 
                  num_heads: int = 8, num_layers: int = 6, max_len: int = 256,
@@ -146,6 +148,7 @@ class Transformer(nn.Module):
         Returns:
             Mask of shape (batch_size, 1, 1, src_len)
         """
+        print(src.shape)
         src_mask = (src != self.src_pad_idx).unsqueeze(1).unsqueeze(2)
         return src_mask
     
@@ -181,9 +184,11 @@ class Transformer(nn.Module):
             Logits of shape (batch_size, tgt_len, tgt_vocab_size)
         """
         # Create masks
+        print("=" * 20 + " DEBUG INFO " + "=" * 20)
+        print(src.shape, tgt.shape)
         src_mask = self.make_src_mask(src)
         tgt_mask = self.make_tgt_mask(tgt)
-        
+
         # Embed source and target
         src_emb = self.src_embedding(src)  # (batch_size, src_len, embed_dim)
         tgt_emb = self.tgt_embedding(tgt)  # (batch_size, tgt_len, embed_dim)
@@ -196,7 +201,8 @@ class Transformer(nn.Module):
         
         # Project to vocabulary
         logits = self.output_projection(output)
-        
+        print("uee")
+        print(logits.shape)
         return logits
     
     def encode(self, src: torch.Tensor) -> torch.Tensor:

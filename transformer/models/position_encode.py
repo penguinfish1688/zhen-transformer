@@ -31,11 +31,11 @@ class PositionalEncoding(nn.Module):
         
         # Compute the divisor term: 10000^(2i/d_model)
         div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim))
-        
+
         # Apply sin to even indices and cos to odd indices
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        
+
         # Add batch dimension: (1, max_len, embed_dim)
         pe = pe.unsqueeze(0)
         

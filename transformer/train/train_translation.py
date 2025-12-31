@@ -33,16 +33,16 @@ def train_epoch(model, dataloader, optimizer, criterion, device, epoch):
         tgt_batch = tgt_batch.to(device)
         
         # Teacher forcing: use all but last target token as input
-        tgt_input = tgt_batch[:, :-1]
-        tgt_output = tgt_batch[:, 1:]
-        
+        tgt_input = tgt_batch[:, :-1] # (batch_size, tgt_len - 1)
+        tgt_output = tgt_batch[:, 1:] # (batch_size, tgt_len - 1)
+
         # Forward pass
         optimizer.zero_grad()
-        logits = model(src_batch, tgt_input)
-        
+        logits = model(src_batch, tgt_input) # logits: (batch_size, tgt_len - 1, tgt_vocab_size)
+
         # Compute loss
-        logits_flat = logits.reshape(-1, logits.shape[-1])
-        targets_flat = tgt_output.reshape(-1)
+        logits_flat = logits.reshape(-1, logits.shape[-1]) # (batch_size * (tgt_len - 1), tgt_vocab_size)
+        targets_flat = tgt_output.reshape(-1) # (batch_size * (tgt_len - 1))
         loss = criterion(logits_flat, targets_flat)
         
         # Backward pass
@@ -212,5 +212,5 @@ if __name__ == "__main__":
         num_heads=4,
         num_layers=2,
         learning_rate=1e-3,
-        use_sample=True
+        use_sample=False
     )
