@@ -18,7 +18,7 @@ training:
 # Data Configuration
 data:
   min_freq: 2  # Minimum word frequency to include in vocabulary
-  max_samples: 1000  # Limit samples for testing
+  max_samples: 1000000  # Limit samples for testing
   use_cached_dataset: false  # If true, load from cached dataset; if false, download new
   cache_dir: "data/translation/cache"  # Directory to save/load cached datasets
   download_new: false  # If true, always download new data from online

@@ -184,8 +184,6 @@ class Transformer(nn.Module):
             Logits of shape (batch_size, tgt_len, tgt_vocab_size)
         """
         # Create masks
-        print("=" * 20 + " DEBUG INFO " + "=" * 20)
-        print(src.shape, tgt.shape)
         src_mask = self.make_src_mask(src)
         tgt_mask = self.make_tgt_mask(tgt)
 
@@ -201,8 +199,7 @@ class Transformer(nn.Module):
         
         # Project to vocabulary
         logits = self.output_projection(output)
-        print("uee")
-        print(logits.shape)
+
         return logits
     
     def encode(self, src: torch.Tensor) -> torch.Tensor:
