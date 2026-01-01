@@ -13,7 +13,8 @@ class EncoderLayer(nn.Module):
         self.linear2 = nn.Linear(embed_dim * 4, embed_dim)
         self.norm1 = nn.LayerNorm(embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, src, src_mask=None):
         """forward
@@ -21,15 +22,19 @@ class EncoderLayer(nn.Module):
             src: (batch_size, seq_len, embed_dim)
             src_mask: attention mask (batch, seq_len, seq_len)
         """
-        # Self-attention
-        attn_output = self.self_attn(query=src, key=src, value=src, mask=src_mask)
-        src = src + self.dropout(attn_output)
+        # Self-attention (Pre-LN)
+        _src = src # _src for residual connection
         src = self.norm1(src)
+        attn_output = self.self_attn(query=src, key=src, value=src, mask=src_mask)
+        src = self.dropout1(attn_output)
+        src = src + _src
 
-        # Feedforward
-        ff_output = self.linear2(F.relu(self.linear1(src)))
-        src = src + self.dropout(ff_output)
+        # Feedforward (Pre-LN)
+        _src = src
         src = self.norm2(src)
+        ff_output = self.linear2(F.relu(self.linear1(src)))
+        src = self.dropout2(ff_output)
+        src = src + _src
 
         return src
 
@@ -43,7 +48,10 @@ class DecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
         self.norm3 = nn.LayerNorm(embed_dim)
-        self.dropout = nn.Dropout(dropout)
+        self.norm_mem = nn.LayerNorm(embed_dim)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
 
     def forward(self, tgt, memory, tgt_mask=None, memory_mask=None):
         """forward
@@ -54,19 +62,26 @@ class DecoderLayer(nn.Module):
             memory_mask: memory attention mask (batch, tgt_seq_len, src_seq_len)
         """
         # Self-attention
-        attn_output = self.self_attn(query=tgt, key=tgt, value=tgt, mask=tgt_mask)
-        tgt = tgt + attn_output
+        _tgt = tgt
         tgt = self.norm1(tgt)
+        attn_output = self.self_attn(query=tgt, key=tgt, value=tgt, mask=tgt_mask)
+        tgt = self.dropout1(attn_output)
+        tgt = tgt + _tgt
 
         # Cross-attention with encoder output
-        attn_output = self.cross_attn(query=tgt, key=memory, value=memory, mask=memory_mask)
-        tgt = tgt + attn_output
+        _tgt = tgt
         tgt = self.norm2(tgt)
+        memory = self.norm_mem(memory)
+        attn_output = self.cross_attn(query=tgt, key=memory, value=memory, mask=memory_mask)
+        tgt = self.dropout2(attn_output)
+        tgt = tgt + _tgt
 
-        # Feedforward
-        ff_output = self.linear2(F.relu(self.linear1(tgt)))
-        tgt = tgt + self.dropout(ff_output)
+        # Feedforward (Pre-LN)
+        _tgt = tgt
         tgt = self.norm3(tgt)
+        ff_output = self.linear2(F.relu(self.linear1(tgt)))
+        tgt = self.dropout3(ff_output)
+        tgt = tgt + _tgt
 
         return tgt
 
@@ -119,6 +134,7 @@ class Transformer(nn.Module):
         self.num_heads = num_heads
         self.src_pad_idx = src_pad_idx
         self.tgt_pad_idx = tgt_pad_idx
+        self.max_len = max_len
         
         # Embedding layers for source and target
         self.src_embedding = TransformerEmbedding(src_vocab_size, embed_dim, max_len, dropout, src_pad_idx)
@@ -148,7 +164,6 @@ class Transformer(nn.Module):
         Returns:
             Mask of shape (batch_size, 1, 1, src_len)
         """
-        print(src.shape)
         src_mask = (src != self.src_pad_idx).unsqueeze(1).unsqueeze(2)
         return src_mask
     
@@ -184,8 +199,6 @@ class Transformer(nn.Module):
             Logits of shape (batch_size, tgt_len, tgt_vocab_size)
         """
         # Create masks
-        print("=" * 20 + " DEBUG INFO " + "=" * 20)
-        print(src.shape, tgt.shape)
         src_mask = self.make_src_mask(src)
         tgt_mask = self.make_tgt_mask(tgt)
 
@@ -201,8 +214,7 @@ class Transformer(nn.Module):
         
         # Project to vocabulary
         logits = self.output_projection(output)
-        print("uee")
-        print(logits.shape)
+
         return logits
     
     def encode(self, src: torch.Tensor) -> torch.Tensor:

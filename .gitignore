@@ -4,3 +4,17 @@ __pycache__/
 .env
 venv/
 .env/
+config.yaml
+
+# Dataset cache and checkpoints
+data/translation/cache/
+*.pkl
+checkpoints/
+*.pt
+best_model.pt
+*.pyc
+*.pkl
+*.pt
+
+# Ensure specific compiled files in repository paths are untracked
+transformer/models/__pycache__/
