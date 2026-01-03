@@ -30,7 +30,7 @@ class ChineseTokenizer:
         
         Args:
             model_path: Path to trained SentencePiece model (optional)
-            vocab_size: Vocabulary size for training (default: 8000)
+            vocab_size: Vocabulary size for training (default: 16000)
         """
         try:
             self.spm = spm
@@ -131,7 +131,7 @@ class EnglishTokenizer:
         Initialize BPE tokenizer for English
         
         Args:
-            vocab_size: Vocabulary size for BPE (default: 10000)
+            vocab_size: Vocabulary size for BPE (default: 16000)
             model_path: Path to saved tokenizer (optional)
         """
         self.vocab_size = vocab_size
