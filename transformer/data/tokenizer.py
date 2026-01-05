@@ -472,7 +472,7 @@ class TranslationTokenizer:
         tgt_tokenized = [self.tokenize_target(s) for s in tgt_sentences]
         print(f"   ✅ Tokenized {len(tgt_tokenized)} English sentences")
         print(f"   📊 Sample: {tgt_sentences[0][:50]}... → {tgt_tokenized[0][:10]}")
-        
+
         # Build vocabularies
         print("\n📚 Step 5: Building source vocabulary...")
         self.src_vocab.build_from_corpus(src_tokenized, min_freq)

@@ -32,7 +32,7 @@ class EncoderLayer(nn.Module):
         # Feedforward (Pre-LN)
         _src = src
         src = self.norm2(src)
-        ff_output = self.linear2(F.relu(self.linear1(src)))
+        ff_output = self.linear2(F.gelu(self.linear1(src)))
         src = self.dropout2(ff_output)
         src = src + _src
 
@@ -79,7 +79,7 @@ class DecoderLayer(nn.Module):
         # Feedforward (Pre-LN)
         _tgt = tgt
         tgt = self.norm3(tgt)
-        ff_output = self.linear2(F.relu(self.linear1(tgt)))
+        ff_output = self.linear2(F.gelu(self.linear1(tgt)))
         tgt = self.dropout3(ff_output)
         tgt = tgt + _tgt
 
