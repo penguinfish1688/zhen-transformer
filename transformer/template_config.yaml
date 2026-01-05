@@ -19,7 +19,7 @@ training:
 data:
   min_freq: 2  # Minimum word frequency to include in vocabulary
   max_samples: 5000000  # Limit samples for testing
-  download_new: false  # If true, always download new data from online
+  download_new: true  # If true, always download new data from online and create new dataset
 
 # Tokenization
 tokenization:
