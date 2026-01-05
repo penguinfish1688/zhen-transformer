@@ -23,3 +23,5 @@ english_bpe.json
 
 # Ensure specific compiled files in repository paths are untracked
 transformer/models/__pycache__/
+
+check_data.py
