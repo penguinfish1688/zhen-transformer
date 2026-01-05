@@ -144,7 +144,7 @@ def download_sample_data() -> Tuple[List[str], List[str]]:
     return chinese_sentences, english_sentences
 
 
-def download_wmt_sample(num_samples: int = 1000) -> Tuple[List[str], List[str]]:
+def download_wmt_sample(num_samples: int = 1000, streaming: bool = False) -> Tuple[List[str], List[str]]:
     """
     Download a sample from WMT translation datasets using HuggingFace datasets.
     
@@ -183,7 +183,7 @@ def download_wmt_sample(num_samples: int = 1000) -> Tuple[List[str], List[str]]:
         
         # Load WMT19 dataset for Chinese-English (zh-en)
         # Using streaming=True for faster access without downloading full dataset
-        dataset = load_dataset("wmt/wmt19", "zh-en", split="train", streaming=True)
+        dataset = load_dataset("wmt/wmt19", "zh-en", split="train", streaming=streaming)
         
         # Extract samples using streaming
         chinese_sentences = []

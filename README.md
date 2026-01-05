@@ -16,7 +16,7 @@ This is a complete implementation of the Transformer architecture for translatin
 - **Positional Encoding**: Sinusoidal positional embeddings for sequence ordering
 
 ## Dataset
-- Opus 100 dataset, consisting of roughly 1M English-Simplified Chinese sentence pairs.
+- WMT dataset, consisting of roughly 10M English-Simplified Chinese sentence pairs.
 - 80% for training, 10% for validation, 10% reserved for testing.
 
 
@@ -57,4 +57,3 @@ python -m transformer.train.train_translation
 ```
 ## Training progress
 - Trained on one H200 for 3 hours
-- 
