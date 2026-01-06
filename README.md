@@ -55,5 +55,8 @@ output = model.decode(tgt_tokens, memory, src_tokens)
 cd zhen-transformer
 python -m transformer.train.train_translation
 ```
-## Training progress
-- Trained on one H200 for 3 hours
+## Results
+- 4 Epochs
+- Trained on one H200 for 3.5 hours
+- BLEU score ~21
+- Loss vs Time 
