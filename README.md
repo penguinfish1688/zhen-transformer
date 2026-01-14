@@ -7,7 +7,7 @@ A Transformer model for Chinese-to-English machine translation.
 This is a complete implementation of the Transformer architecture for translating Chinese text into English. The model follows the standard encoder-decoder pattern with multi-head self-attention and cross-attention mechanisms.
 
 ## Architecture
-
+- **Tokenizer**: BPE for English, WordPiece for Chinese.
 - **Encoder**: Stacked encoder layers with self-attention and feed-forward networks
 - **Decoder**: Stacked decoder layers with self-attention, cross-attention over encoder output, and feed-forward networks
 - **Multi-Head Attention**: 8 attention heads by default for parallel representation learning
@@ -16,7 +16,7 @@ This is a complete implementation of the Transformer architecture for translatin
 - **Positional Encoding**: Sinusoidal positional embeddings for sequence ordering
 
 ## Dataset
-- WMT dataset, consisting of roughly 10M English-Simplified Chinese sentence pairs.
+- WMT19 dataset, consisting of roughly 10M English-Simplified Chinese sentence pairs.
 - 80% for training, 10% for validation, 10% reserved for testing.
 
 
